@@ -17,19 +17,24 @@ def download_mp3(query):
         'format': 'bestaudio/best',
         'quiet': True,
         'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'cookiefile': 'downloads/cookies.txt',  # YouTube cookie faylı
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{query}", download=True)
-        entries = info.get('entries')
-        if not entries:
-            return None
-        filename = ydl.prepare_filename(entries[0])
-        return filename.replace(".webm", ".mp3").replace(".m4a", ".mp3")
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch:{query}", download=True)
+            entries = info.get('entries')
+            if not entries:
+                return None
+            filename = ydl.prepare_filename(entries[0])
+            return filename.replace(".webm", ".mp3").replace(".m4a", ".mp3")
+    except Exception as e:
+        print(f"Xəta: {e}")
+        return None
 
 # Spotify linkindən mahnı adını çıxarma
 def extract_title_from_spotify(spotify_url):
@@ -54,7 +59,6 @@ async def handle_message(client, message):
     user_input = message.text.strip()
     await message.reply("🔍 Axtarılır...")
 
-    # Əgər Spotify linkdirsə, başlıq çıxart
     if "open.spotify.com/track" in user_input:
         query = extract_title_from_spotify(user_input)
         if not query:
@@ -63,10 +67,9 @@ async def handle_message(client, message):
     else:
         query = user_input
 
-    # YouTube axtarış və yükləmə
     filename = download_mp3(query)
-    if not filename:
-        await message.reply("❌ Mahnı tapılmadı.")
+    if not filename or not os.path.exists(filename):
+        await message.reply("❌ Mahnı tapılmadı və ya yüklənə bilmədi.")
         return
 
     await message.reply_audio(audio=filename, caption=f"✅ MP3 Hazır: {query}")
